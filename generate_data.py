@@ -88,7 +88,7 @@ def main():
     for name, params in targets.items():
         generate_scenario(name, params)
 
-    print(f"\n✓ Done — {len(targets)} dataset(s) written to data/simulated/mixture/")
+    print(f"\nDone - {len(targets)} dataset(s) written to data/simulated/mixture/")
 
 
 if __name__ == "__main__":
