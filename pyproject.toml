@@ -1,5 +1,5 @@
 [project]
-name = "liesel-project"
+name = "HierarchicalBayesianMNL"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
