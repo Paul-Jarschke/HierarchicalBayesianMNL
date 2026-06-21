@@ -39,17 +39,6 @@ def generate_mixture_simulated_data(
     dict with arrays X, y, Z, unit_idx and all TRUE_ ground-truth parameters
     """
 
-    # ------------------------------------------------------------------
-    # Warn early for scenarios Rossi flags as hard to recover (§5.5)
-    # ------------------------------------------------------------------
-    if (n_units * n_obs) / n_components < 4500:
-        print(
-            f"[DGP] Low information regime: "
-            f"{n_units} units x {n_obs} obs / K={n_components} "
-            f"= {n_units * n_obs / n_components:.0f} observations per component. "
-            f"Component recovery may be difficult for both samplers."
-        )
-
     np.random.seed(seed)
 
     if n_params is None:
