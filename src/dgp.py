@@ -42,13 +42,12 @@ def generate_mixture_simulated_data(
     # ------------------------------------------------------------------
     # Warn early for scenarios Rossi flags as hard to recover (§5.5)
     # ------------------------------------------------------------------
-    if n_components >= 4 and n_obs < 50:
-        warnings.warn(
-            f"K={n_components} with n_obs={n_obs}: Rossi (2006) warns that "
-            "recovering complex mixture structure is difficult with low per-unit "
-            "observation counts. Component drift is a real risk.",
-            UserWarning,
-            stacklevel=2,
+    if (n_units * n_obs) / n_components < 4500:
+        print(
+            f"[DGP] Low information regime: "
+            f"{n_units} units x {n_obs} obs / K={n_components} "
+            f"= {n_units * n_obs / n_components:.0f} observations per component. "
+            f"Component recovery may be difficult for both samplers."
         )
 
     np.random.seed(seed)
@@ -194,4 +193,4 @@ def save_to_json(data, filename="sim_data.json"):
     with open(filename, "w") as f:
         json.dump(serializable_data, f, indent=4)
 
-    print(f"Saved → {os.path.abspath(filename)}")
+    print(f"Saved to {os.path.abspath(filename)}")
