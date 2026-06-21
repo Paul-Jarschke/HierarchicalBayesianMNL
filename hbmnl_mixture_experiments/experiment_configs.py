@@ -41,8 +41,7 @@ SCENARIOS: dict[str, dict] = {
         **BASE,
         "n_components": 5,
         "custom_pvec":  [0.20, 0.20, 0.20, 0.20, 0.20],
-        # ~60 units per component on average — recovery is genuinely hard.
-        # Rossi (2006) explicitly warns about this regime. Differences
-        # between samplers here reflect robustness, not just performance.
+        # ~60 units per component on average, making recovery is genuinely hard.
+        # Rossi (2006) explicitly warns about this regime.
     },
 }
