@@ -1,3 +1,4 @@
 # Filetypes to ignore when pushing commits to remote GitHub repository
 __pycache__/
 *.pyc
+*.json
