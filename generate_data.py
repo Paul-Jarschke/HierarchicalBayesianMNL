@@ -25,9 +25,8 @@ import sys
 
 # Ensure src/ is importable when running from the project root
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
 
-from dgp import generate_mixture_simulated_data, save_to_json
+from src.dgp import generate_mixture_simulated_data, save_to_json
 from hbmnl_mixture_experiments.experiment_configs import SCENARIOS
 
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "data", "simulated", "mixture")
