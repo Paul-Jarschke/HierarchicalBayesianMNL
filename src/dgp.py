@@ -11,28 +11,25 @@ def generate_mixture_simulated_data(
         n_units=2000, n_obs=100, n_alts=4, n_components=2, n_params=None,
         n_demos=2, custom_pvec=None, custom_indicators=None, seed=123):
     """
-    Simulate data for a Bayesian Hierarchical Multinomial Logit model
-    with a mixture-of-normals heterogeneity distribution.
+    Simulate data for a Bayesian Hierarchical Multinomial Logit model with a mixture-of-normals heterogeneity distribution.
 
     Follows Rossi (2006) §5.5 specification:
-      - Z is centred; no intercept column                          (§5.5 advice)
-      - mu_k  ~ N(0, I / A_MU),  A_MU = 1/16 for standardised X  (§5.5)
-      - Sigma_k ~ IW(nu, V),  nu = nvar+3, V = nu*I               (§5.5)
-      - Continuous X attributes are standardised globally before
-        choice simulation                                          (§5.5 advice)
-      - K >= 4 with n_obs < 50 triggers a UserWarning             (§5.5 caution)
+      - Z is centred; no intercept column
+      - mu_k  ~ N(0, I / A_MU),  A_MU = 1/16 for standardised X
+      - Sigma_k ~ IW(nu, V),  nu = nvar+3, V = nu*I            
+      - Continuous X attributes are standardised globally before choice simulation
 
     Parameters
     ----------
-    n_units       : number of decision-making units (households / individuals)
-    n_obs         : number of choice occasions per unit
-    n_alts        : number of alternatives per choice occasion
-    n_components  : number of mixture components K
-    n_params      : total number of beta parameters (defaults to n_alts)
-    n_demos       : number of demographic covariates in Z
-    custom_pvec   : optional fixed mixture weights; will be normalised
-    custom_indicators : optional fixed component assignments per unit
-    seed          : numpy random seed for reproducibility
+    n_units             : number of decision-making units (households / individuals)
+    n_obs               : number of choice occasions per unit
+    n_alts              : number of alternatives per choice occasion
+    n_components        : number of mixture components K
+    n_params            : total number of beta parameters (defaults to n_alts)
+    n_demos             : number of demographic covariates in Z
+    custom_pvec         : optional fixed mixture weights; will be normalised
+    custom_indicators   : optional fixed component assignments per unit
+    seed                : numpy random seed for reproducibility
 
     Returns
     -------
