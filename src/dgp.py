@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import json
-import warnings
 
 import jax.numpy as jnp
 from scipy.stats import invwishart
