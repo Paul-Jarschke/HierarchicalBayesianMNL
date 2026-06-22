@@ -668,6 +668,53 @@ wheels = [
 ]
 
 [[package]]
+name = "hierarchicalbayesianmnl"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "arviz" },
+    { name = "graphviz" },
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "liesel" },
+    { name = "numpyro" },
+    { name = "plotnine" },
+    { name = "pyreadr" },
+    { name = "tensorflow" },
+    { name = "tensorflow-probability" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ipykernel" },
+    { name = "ipython" },
+    { name = "jupyter" },
+    { name = "notebook" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "arviz", specifier = ">=0.22.0" },
+    { name = "graphviz", specifier = ">=0.21" },
+    { name = "jax", specifier = ">=0.6.2" },
+    { name = "jaxlib", specifier = ">=0.6.2" },
+    { name = "liesel", specifier = ">=0.4.1" },
+    { name = "numpyro", specifier = ">=0.19.0" },
+    { name = "plotnine", specifier = ">=0.15.1" },
+    { name = "pyreadr", specifier = ">=0.5.4" },
+    { name = "tensorflow", specifier = ">=2.20.0" },
+    { name = "tensorflow-probability", specifier = ">=0.25.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ipykernel", specifier = ">=7.1.0" },
+    { name = "ipython", specifier = ">=9.7.0" },
+    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "notebook", specifier = ">=7.4.7" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -1246,53 +1293,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/17/ca/4f439f411caddca16a5849b9b428f935cef0c9aab722bfa65b52ac732c03/liesel-0.4.1.tar.gz", hash = "sha256:6eaffdfa84a57554f06cbdbb4fb16ad938bf240086cf34d50fbf52241e035731", size = 7378521, upload-time = "2025-07-25T09:52:51.493Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/21/52/793fea8bd669965fc10b71effeff6d3b9ecf2d14eec09ab66ce732083d4f/liesel-0.4.1-py3-none-any.whl", hash = "sha256:ee345f983b33efae58374c6e123b8746add897b68be0515e8eaa60b1099727fa", size = 125090, upload-time = "2025-07-25T09:52:49.136Z" },
-]
-
-[[package]]
-name = "liesel-project"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "arviz" },
-    { name = "graphviz" },
-    { name = "jax" },
-    { name = "jaxlib" },
-    { name = "liesel" },
-    { name = "numpyro" },
-    { name = "plotnine" },
-    { name = "pyreadr" },
-    { name = "tensorflow" },
-    { name = "tensorflow-probability" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "ipykernel" },
-    { name = "ipython" },
-    { name = "jupyter" },
-    { name = "notebook" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "arviz", specifier = ">=0.22.0" },
-    { name = "graphviz", specifier = ">=0.21" },
-    { name = "jax", specifier = ">=0.6.2" },
-    { name = "jaxlib", specifier = ">=0.6.2" },
-    { name = "liesel", specifier = ">=0.4.1" },
-    { name = "numpyro", specifier = ">=0.19.0" },
-    { name = "plotnine", specifier = ">=0.15.1" },
-    { name = "pyreadr", specifier = ">=0.5.4" },
-    { name = "tensorflow", specifier = ">=2.20.0" },
-    { name = "tensorflow-probability", specifier = ">=0.25.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ipykernel", specifier = ">=7.1.0" },
-    { name = "ipython", specifier = ">=9.7.0" },
-    { name = "jupyter", specifier = ">=1.1.1" },
-    { name = "notebook", specifier = ">=7.4.7" },
 ]
 
 [[package]]
