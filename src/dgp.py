@@ -3,7 +3,6 @@ import os
 import json
 
 import jax.numpy as jnp
-from scipy.stats import invwishart
 
 
 def generate_mixture_simulated_data(
@@ -15,7 +14,7 @@ def generate_mixture_simulated_data(
     Follows Rossi (2006) §5.5 specification:
       - Z is centred; no intercept column
       - mu_k  ~ N(0, I / A_MU),  A_MU = 1/16 for standardised X
-      - Sigma_k ~ IW(nu, V),  nu = nvar+3, V = nu*I            
+      - Sigma_k ~ Diagonal with variances ~ Uniform(0.5, 2.0)
       - Continuous X attributes are standardised globally before choice simulation
 
     Parameters
@@ -63,18 +62,16 @@ def generate_mixture_simulated_data(
 
     # ------------------------------------------------------------------
     # Component parameters
-    #   mu_k    ~ N(0, I / A_MU)   — prior-consistent, A_MU = 1/16  (§5.5)
-    #   Sigma_k ~ IW(nu, V)        — full PD matrix, nu = nvar+3     (§5.5)
+    #   mu_k    ~ N(0, I / A_MU)              — prior-consistent, A_MU = 1/16  (§5.5)
+    #   Sigma_k ~ Diagonal, variances ~ U(0.5, 2.0)
     # ------------------------------------------------------------------
-    A_MU     = 1.0 / 16.0                   # Rossi: a_mu = 1/16 → SD = 4
-    NU_SIGMA = n_params + 3                  # Rossi: nu = nvar + 3
-    V_SIGMA  = NU_SIGMA * np.eye(n_params)  # Rossi: V  = nu * I
+    A_MU = 1.0 / 16.0                   # Rossi: a_mu = 1/16 → SD = 4
 
     true_mu_k    = np.zeros((n_components, n_params))
     true_Sigma_k = np.zeros((n_components, n_params, n_params))
 
     for k in range(n_components):
-        true_Sigma_k[k] = invwishart.rvs(df=NU_SIGMA, scale=V_SIGMA)
+        true_Sigma_k[k] = np.diag(np.random.uniform(0.5, 2.0, n_params))
         true_mu_k[k]    = np.random.normal(0.0, np.sqrt(1.0 / A_MU), size=n_params)
 
     # ------------------------------------------------------------------
@@ -153,7 +150,6 @@ def generate_mixture_simulated_data(
         "TRUE_SIGMA_K":    true_Sigma_k,
         "TRUE_INDICATORS": true_indicators,
         "DGP_A_MU":        float(A_MU),
-        "DGP_NU_SIGMA":    int(NU_SIGMA),
     }
 
 
