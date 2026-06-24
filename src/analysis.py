@@ -3,14 +3,13 @@ Diagnostics and parameter-recovery utilities for the mixture HBMNL model.
 
 Convention used throughout
 --------------------------
-    K       — number of MODEL components (K_MODEL). Drives every loop over
-              posterior draws. Posterior arrays always have this many
-              components.
+    K       — number of MODEL components (K_MODEL).
+              Drives every loop over posterior draws.
+              Posterior arrays always have this many components.
     K_true  — number of TRUE components in the data-generating process.
-              Ground-truth arrays (true_mu, true_pvec, true_sigma) have only
-              K_true entries. When K_MODEL > K_true the extra model components
-              are "spurious": they have no true counterpart, so truth overlays
-              are skipped for them rather than indexing out of bounds.
+              Ground-truth arrays (true_mu, true_pvec, true_sigma) have only K_true entries.
+              When K_MODEL > K_true the extra model components are "spurious":
+              They have no true counterpart, so truth overlays are skipped for them rather than indexing out of bounds.
 
 Functions that overlay ground truth (summarize_mu_k, plot_pvec_diagnostics,
 summarize_pvec) therefore take an optional `K_true` argument. If it is omitted
@@ -28,6 +27,7 @@ from matplotlib.lines import Line2D
 from scipy.optimize import linear_sum_assignment
 import tensorflow_probability.substrates.jax.bijectors as tfb
 from IPython.display import display
+import arviz as az
 
 
 # --------------------------------------------------------------------------- #
@@ -62,8 +62,7 @@ def plot_cholesky_traces(samples_dict, n_params, k_idx=0,
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=n_chains,
                bbox_to_anchor=(0.5, 0.02))
-    plt.suptitle(f"MCMC Trace: {param_name} (Component {k_idx}) - {n_params}x{n_params}",
-                 fontsize=20)
+    plt.suptitle(f"Cholesky Factor of Precision Matrix - Component {k_idx + 1}", fontsize=20)
     plt.tight_layout(rect=[0, 0.05, 1, 0.95])
     plt.show()
 
@@ -81,8 +80,7 @@ def plot_goose_style_diagnostics(delta_array, demo_idx, param_idx,
                                  demo_name, param_name, n_lags=30):
     n_chains = delta_array.shape[0]
     fig = plt.figure(figsize=(12, 7))
-    fig.suptitle(f"Diagnostics: 'Delta[{demo_idx}, {param_idx}]' "
-                 f"({demo_name} -> {param_name})", fontsize=14, y=0.95)
+    fig.suptitle(f"Δ[{demo_name}, {param_name}]", fontsize=14, y=0.95)
     gs_layout = gridspec.GridSpec(2, 2, height_ratios=[1.2, 1], hspace=0.3, wspace=0.2)
 
     ax_trace = fig.add_subplot(gs_layout[0, :])
@@ -95,10 +93,15 @@ def plot_goose_style_diagnostics(delta_array, demo_idx, param_idx,
                     bbox_to_anchor=(1.02, 0.5), frameon=False)
 
     ax_dens = fig.add_subplot(gs_layout[1, 0])
+    all_draws = delta_array[:, :, demo_idx, param_idx].reshape(-1)
+    ci_low, ci_high = np.percentile(all_draws, [2.5, 97.5])
     for chain in range(n_chains):
         sns.kdeplot(delta_array[chain, :, demo_idx, param_idx], ax=ax_dens, fill=False)
+    ax_dens.axvline(ci_low, color="black", linestyle=":", lw=1.2, label="95% CI")
+    ax_dens.axvline(ci_high, color="black", linestyle=":", lw=1.2)
     ax_dens.set_xlabel("Value")
     ax_dens.set_ylabel("Density")
+    ax_dens.set_title(f"95% CI: [{ci_low:.3f}, {ci_high:.3f}]", fontsize=10)
     ax_dens.grid(True)
 
     ax_acf = fig.add_subplot(gs_layout[1, 1])
@@ -188,8 +191,7 @@ def plot_final_covariance_complete(samples, true_matrix=None,
 
     fig.legend(handles=legend_elements, loc="upper right",
                bbox_to_anchor=(0.9, 0.9), fontsize=14, frameon=True)
-    plt.suptitle(f"Component {component_idx}: Posterior Covariance Matrices",
-                 fontsize=24, y=0.98)
+    plt.suptitle(f"Posterior Σ_k - Component {component_idx}", fontsize=24, y=0.98)
     plt.subplots_adjust(hspace=0.6, wspace=0.2)
     plt.show()
 
@@ -230,7 +232,7 @@ def summarize_mu_k(mu_samples, K, P, param_names, true_mu=None, K_true=None):
         if true_k is not None:
             header = f"--- MCMC Component {k} (matched to True Component {true_k}) ---"
         elif true_mu is not None:
-            header = f"--- MCMC Component {k} (spurious - no true counterpart) ---"
+            header = f"--- MCMC Component {k} ---"
         else:
             header = f"--- MCMC Component {k} ---"
         print(f"\n{header}")
@@ -244,6 +246,46 @@ def summarize_mu_k(mu_samples, K, P, param_names, true_mu=None, K_true=None):
             df.insert(1, "True_Value", true_mu[true_k])
             df["Diff_Abs"] = np.abs(true_mu[true_k] - df["Posterior_Mean"])
         display(df.round(4).set_index("Parameter"))
+
+
+def plot_mu_k_diagnostics(mu_samples, K, P, param_names, n_lags=30):
+    """Goose-style diagnostics (trace, distribution, ACF) for each mu_k[k, p]."""
+    n_chains = mu_samples.shape[0]
+    for k in range(K):
+        for p in range(P):
+            fig = plt.figure(figsize=(12, 7))
+            fig.suptitle(f"mu_k[Component {k + 1}, {param_names[p]}]", fontsize=14, y=0.95)
+            gs_layout = gridspec.GridSpec(2, 2, height_ratios=[1.2, 1], hspace=0.3, wspace=0.2)
+
+            ax_trace = fig.add_subplot(gs_layout[0, :])
+            for chain in range(n_chains):
+                ax_trace.plot(mu_samples[chain, :, k, p], label=f"{chain}")
+            ax_trace.set_xlabel("Iteration")
+            ax_trace.set_ylabel("Value")
+            ax_trace.grid(True, alpha=1)
+            ax_trace.legend(title="Chain", loc="center left",
+                            bbox_to_anchor=(1.02, 0.5), frameon=False)
+
+            ax_dens = fig.add_subplot(gs_layout[1, 0])
+            all_draws = mu_samples[:, :, k, p].reshape(-1)
+            ci_low, ci_high = np.percentile(all_draws, [2.5, 97.5])
+            for chain in range(n_chains):
+                sns.kdeplot(mu_samples[chain, :, k, p], ax=ax_dens, fill=False)
+            ax_dens.axvline(ci_low, color="black", linestyle=":", lw=1.2, label="95% CI")
+            ax_dens.axvline(ci_high, color="black", linestyle=":", lw=1.2)
+            ax_dens.set_xlabel("Value")
+            ax_dens.set_ylabel("Density")
+            ax_dens.set_title(f"95% CI: [{ci_low:.3f}, {ci_high:.3f}]", fontsize=10)
+            ax_dens.grid(True)
+
+            ax_acf = fig.add_subplot(gs_layout[1, 1])
+            for chain in range(n_chains):
+                ax_acf.plot(compute_acf(mu_samples[chain, :, k, p], nlags=n_lags), alpha=1)
+            ax_acf.set_xlabel("Lag")
+            ax_acf.set_ylabel("Autocorrelation")
+            ax_acf.set_ylim(-0.1, 1.05)
+            ax_acf.grid(True)
+            plt.show()
 
 
 def generate_delta_summaries(delta_samples, param_names, demo_names, true_delta=None):
@@ -332,10 +374,9 @@ def plot_beta_scatter(beta_samples, true_betas, param_names):
 
 def plot_beta_distributions(samples, p_names, title_prefix, true_vals=None,
                             color_l="#1f77b4", color_t="#d62728"):
-    cols = 2
-    rows = int(np.ceil(len(p_names) / cols))
-    fig, axes = plt.subplots(rows, cols, figsize=(14, 4 * rows))
-    if len(p_names) == 1:
+    n = len(p_names)
+    fig, axes = plt.subplots(1, n, figsize=(5 * n, 4))
+    if n == 1:
         axes = np.array([axes])
 
     for i, (ax, param) in enumerate(zip(axes.flatten(), p_names)):
@@ -367,6 +408,59 @@ def plot_beta_distributions(samples, p_names, title_prefix, true_vals=None,
     plt.show()
 
 
+def plot_beta_unit_diagnostics(beta_samples, unit_idx, param_names, n_lags=30):
+    """Trace, distribution, and ACF for all parameters of one household.
+
+    beta_samples : (chains, draws, N, P)
+    """
+    unit_draws = beta_samples[:, :, unit_idx, :]   # (chains, draws, P)
+    n_chains, _, P = unit_draws.shape
+
+    fig, axes = plt.subplots(P, 3, figsize=(15, 4 * P))
+    if P == 1:
+        axes = axes[np.newaxis, :]
+
+    for p in range(P):
+        draws_p = unit_draws[:, :, p]
+        all_draws = draws_p.reshape(-1)
+        ci_low, ci_high = np.percentile(all_draws, [2.5, 97.5])
+
+        ax_trace, ax_dens, ax_acf = axes[p, 0], axes[p, 1], axes[p, 2]
+
+        for chain in range(n_chains):
+            ax_trace.plot(draws_p[chain], label=f"{chain}")
+        ax_trace.set_ylabel(param_names[p], fontweight="bold")
+        ax_trace.set_xlabel("Iteration")
+        ax_trace.grid(True, alpha=0.4)
+
+        for chain in range(n_chains):
+            sns.kdeplot(draws_p[chain], ax=ax_dens, fill=False)
+        ax_dens.axvline(ci_low, color="black", linestyle=":", lw=1.2)
+        ax_dens.axvline(ci_high, color="black", linestyle=":", lw=1.2)
+        ax_dens.set_xlabel("Value")
+        ax_dens.grid(True, alpha=0.4)
+
+        for chain in range(n_chains):
+            ax_acf.plot(compute_acf(draws_p[chain], nlags=n_lags), alpha=1)
+        ax_acf.set_xlabel("Lag")
+        ax_acf.set_ylabel("Autocorrelation")
+        ax_acf.set_ylim(-0.1, 1.05)
+        ax_acf.grid(True, alpha=0.4)
+
+        if p == 0:
+            ax_trace.set_title("Trace", fontsize=11)
+            ax_dens.set_title(f"Distribution - 95% CI: [{ci_low:.3f}, {ci_high:.3f}]", fontsize=10)
+            ax_acf.set_title("ACF", fontsize=11)
+            ax_trace.legend(title="Chain", loc="center left",
+                            bbox_to_anchor=(1.02, 0.5), frameon=False)
+        else:
+            ax_dens.set_title(f"95% CI: [{ci_low:.3f}, {ci_high:.3f}]", fontsize=10)
+
+    plt.suptitle(f"Posterior Diagnostics - Household {unit_idx}", fontsize=14, y=1.01)
+    plt.tight_layout()
+    plt.show()
+
+
 # --------------------------------------------------------------------------- #
 # 5. Component probabilities (pvec)
 # --------------------------------------------------------------------------- #
@@ -387,23 +481,15 @@ def plot_pvec_diagnostics(pvec_samples, K, true_pvec=None, K_true=None, n_lags=3
         has_true = (true_pvec is not None and k < K_true)
 
         fig = plt.figure(figsize=(12, 7))
-        title = f"Diagnostics: pvec[{k}]"
-        if has_true:
-            title += f"  |  True = {true_pvec[k]:.4f}"
-        elif true_pvec is not None:
-            title += "  |  (spurious component - no true value)"
-        fig.suptitle(title, fontsize=14, y=0.95)
+        fig.suptitle(f"Diagnostics: pvec[{k}]", fontsize=14, y=0.95)
         gs_layout = gridspec.GridSpec(2, 2, height_ratios=[1.2, 1], hspace=0.35, wspace=0.25)
 
         ax_trace = fig.add_subplot(gs_layout[0, :])
         for chain in range(n_chains):
             ax_trace.plot(pvec_samples[chain, :, k], label=f"Chain {chain}")
-        if has_true:
-            ax_trace.axhline(true_pvec[k], color="red", linestyle="--", lw=1.5,
-                             label="True value")
         ax_trace.set_xlabel("Iteration")
         ax_trace.set_ylabel("Probability")
-        ax_trace.set_ylim(0, 1)
+        ax_trace.set_ylim(-0.05, 1.05)
         ax_trace.grid(True, alpha=0.4)
         ax_trace.legend(title="Chain", loc="center left",
                         bbox_to_anchor=(1.02, 0.5), frameon=False)
@@ -417,9 +503,6 @@ def plot_pvec_diagnostics(pvec_samples, K, true_pvec=None, K_true=None, n_lags=3
                         label=f"Post. Mean: {post_mean:.3f}")
         ax_dens.axvline(ci_low, color="black", linestyle=":", lw=1.2)
         ax_dens.axvline(ci_high, color="black", linestyle=":", lw=1.2)
-        if has_true:
-            ax_dens.axvline(true_pvec[k], color="red", linestyle="--", lw=1.5,
-                            label=f"True: {true_pvec[k]:.3f}")
         ax_dens.set_xlabel("Probability")
         ax_dens.set_ylabel("Density")
         ax_dens.set_xlim(0, 1)
@@ -452,8 +535,15 @@ def summarize_pvec(pvec_samples_sorted, K, true_pvec=None, K_true=None):
         K_true = K
 
     flat = pvec_samples_sorted.reshape(-1, K)
+    means = flat.mean(axis=0)
+    sorted_indices = np.argsort(means)[::-1]  # descending by posterior mean
+
+    true_pvec_desc = None
+    if true_pvec is not None:
+        true_pvec_desc = np.sort(true_pvec)[::-1]  # match rank-to-rank
+
     rows = []
-    for k in range(K):
+    for rank, k in enumerate(sorted_indices):
         draws = flat[:, k]
         ci_low, ci_high = np.percentile(draws, [2.5, 97.5])
         row = {
@@ -463,10 +553,10 @@ def summarize_pvec(pvec_samples_sorted, K, true_pvec=None, K_true=None):
             "CI_2.5%":        ci_low,
             "CI_97.5%":       ci_high,
         }
-        if true_pvec is not None:
-            if k < K_true:
-                row["True_pvec"]  = float(true_pvec[k])
-                row["True_in_CI"] = bool(ci_low <= true_pvec[k] <= ci_high)
+        if true_pvec_desc is not None:
+            if rank < K_true:
+                row["True_pvec"]  = float(true_pvec_desc[rank])
+                row["True_in_CI"] = bool(ci_low <= true_pvec_desc[rank] <= ci_high)
             else:
                 row["True_pvec"]  = np.nan
                 row["True_in_CI"] = np.nan
@@ -552,3 +642,57 @@ def export_posterior_to_pickle(samples, K, P, filename, output_dir="results"):
     print(f"   sigma shape : {sigma_samples_flat.shape}")
     print(f"   std   shape : {std_draws.shape}")
     print(f"   pvec  shape : {flat_pvec.shape}")
+
+
+def _recover_pvec(posterior_samples):
+    if "pvec" in posterior_samples:
+        return np.asarray(posterior_samples["pvec"])
+    if "pvec_latent" in posterior_samples:
+        return np.asarray(tfb.SoftmaxCentered().forward(posterior_samples["pvec_latent"]))
+    raise KeyError("Neither 'pvec' nor 'pvec_latent' in posterior samples.")
+
+
+def _sigma_from_latent(latent):                      # (C,S,K,n_latent) -> (C,S,K,P,P)
+    b = tfb.FillScaleTriL()
+    L = np.asarray(b.forward(latent))                # Cholesky of precision
+    prec = np.einsum("...ij,...kj->...ik", L, L)     # L Lᵀ = Σ⁻¹
+    return np.linalg.inv(prec)
+
+
+def invariant_convergence_summary(posterior_samples, include_cov=True):
+    """
+    R-hat and ESS for LABEL-INVARIANT functionals — the honest convergence check
+    for a mixture, since per-component R-hat is meaningless under label switching.
+    Arrays expected shape (chains, draws, ...).
+    """
+    mu   = np.asarray(posterior_samples["mu_k"])     # (C,S,K,P)
+    pvec = _recover_pvec(posterior_samples)          # (C,S,K)
+    C, S, K, P = mu.shape
+    rows = []
+
+    mix_mean = np.einsum("csk,cskp->csp", pvec, mu)  # E[u] = Σ_k p_k μ_k
+    for p in range(P):
+        a = mix_mean[:, :, p]
+        rows.append({"quantity": f"E[u]_{p}", "rhat": float(az.rhat(a)), "ess": float(az.ess(a))})
+
+    pvec_sorted = np.sort(pvec, axis=-1)
+    for k in range(K):
+        a = pvec_sorted[:, :, k]
+        rows.append({"quantity": f"pvec_sorted_{k}", "rhat": float(az.rhat(a)), "ess": float(az.ess(a))})
+
+    if include_cov:
+        Sigma = _sigma_from_latent(np.asarray(posterior_samples["sigma_inv_chol_k_latent"]))
+        outer  = np.einsum("cskp,cskq->cskpq", mu, mu)
+        second = np.einsum("csk,cskpq->cspq", pvec, Sigma + outer)
+        mbar   = np.einsum("csp,csq->cspq", mix_mean, mix_mean)
+        tr     = np.einsum("cspp->cs", second - mbar)
+        rows.append({"quantity": "tr(Cov[u])", "rhat": float(az.rhat(tr)), "ess": float(az.ess(tr))})
+
+    return pd.DataFrame(rows).set_index("quantity")
+
+
+def per_chain_mu_means(posterior_samples):
+    """Per-chain posterior mean of mu_k — if chains are each internally tight but
+    disagree slot-by-slot, that's between-chain label switching, not a broken run."""
+    mu = np.asarray(posterior_samples["mu_k"])
+    return {f"chain_{c}": mu[c].mean(axis=0) for c in range(mu.shape[0])}
