@@ -133,6 +133,11 @@ def generate_mixture_simulated_data(
             unit_idx_list.append(i)
             flat_idx += 1
 
+    asc_names  = [f"Alt{a}" for a in range(1, n_ascs + 1)]
+    cont_names = ["Price"] if n_continuous == 1 else [f"X{c + 1}" for c in range(n_continuous)]
+    param_names = asc_names + cont_names
+    demo_names  = [f"z{d + 1}" for d in range(n_demos)]
+
     return {
         "X":               jnp.array(X_list),
         "y":               jnp.array(y_list),
@@ -143,6 +148,8 @@ def generate_mixture_simulated_data(
         "n_demos":         n_demos,
         "K":               n_components,
         "n_alts":          n_alts,
+        "param_names":     param_names,
+        "demo_names":      demo_names,
         "TRUE_DELTA":      Delta_true,
         "TRUE_BETA":       beta_true,
         "TRUE_PVEC":       true_pvec,
