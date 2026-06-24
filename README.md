@@ -1,10 +1,10 @@
-# Hierarchical Bayesian Multinomial Logit — Mixture Model Comparison
+# Hierarchical Bayesian Multinomial Logit - Mixture Model Comparison
 
 A simulation study comparing two Bayesian HBMNL mixture-of-normals implementations:
 
-- **bayesm** (R) — Gibbs sampler with a random-walk Metropolis step for the choice
+- **bayesm** (R) - Gibbs sampler with a random-walk Metropolis step for the choice
   coefficients (`rhierMnlRwMixture`, Rossi 2006)
-- **Liesel / Goose** (Python) — gradient-based MCMC: NUTS, fixed-step HMC, and a
+- **Liesel / Goose** (Python) - gradient-based MCMC: NUTS, fixed-step HMC, and a
   mixed IWLS sampler
 
 The two implementations are run on identical datasets so that differences in
@@ -25,13 +25,13 @@ surplus components must collapse.
 
 **Python side**
 
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) — Python package and project manager
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) - Python package and project manager
 - Python 3.13 (managed automatically by uv via `.python-version`)
 
 **R side (bayesm replication)**
 
 - R ≥ 4.5
-- [renv](https://rstudio.github.io/renv/) — per-project R library, the R analogue of `uv.lock`
+- [renv](https://rstudio.github.io/renv/) - per-project R library, the R analogue of `uv.lock`
 
 ---
 
@@ -51,7 +51,7 @@ uv sync
 ```
 
 `uv sync` reads `pyproject.toml`, creates `.venv/`, and installs all pinned
-dependencies from `uv.lock`. No manual `pip install` or venv activation needed —
+dependencies from `uv.lock`. No manual `pip install` or venv activation needed -
 prefix commands with `uv run`.
 
 **R environment (only needed for the bayesm comparison):**
@@ -72,7 +72,7 @@ library under `renv/library/`, isolated from your global R packages.
 ```
 HierarchicalBayesianMNL/
 │
-├── generate_data.py                    # CLI — generates all simulation datasets
+├── generate_data.py                    # CLI - generates all simulation datasets
 ├── run_single_experiment.py            # runs ONE model fit, saves all output
 ├── run_all_experiments.py              # batch orchestrator (overnight runs)
 ├── distribute_analysis_notebooks.py    # copies analysis_template.ipynb into each run folder
@@ -149,12 +149,12 @@ This writes `1comp.json`, `2comp_equal.json`, `3comp_equal.json`, and
 
 The K=1 scenario degenerates to a standard HMNL and serves as a sanity check that
 both samplers agree on the baseline. Equal mixture weights are used throughout to
-maximise label-switching pressure — the hardest setting for both samplers. The
+maximise label-switching pressure - the hardest setting for both samplers. The
 sample size (300 DMUs × 30 observations) mirrors Rossi's (2006) margarine example.
 
 ### DGP Specification
 
-The data-generating process follows Rossi (2006) §5.5:
+The data-generating process follows Rossi (2006):
 
 ```
 θᵢ   = Δ'zᵢ + uᵢ
@@ -167,11 +167,11 @@ indᵢ ~ Multinomial_K(pvec)
 
 Key DGP choices:
 
-- **Z is column-wise centred** — the mean of θ at average z is determined entirely
-  by the mixture component means (§5.5).
-- **Continuous X is standardised globally** — so the prior on μₖ is interpretable
-  on a common scale, consistent with the model the samplers fit (§5.5).
-- **A_μ = 1/16** — Rossi's recommended precision for standardised X, admitting
+- **Z is column-wise centred** - the mean of θ at average z is determined entirely
+  by the mixture component means.
+- **Continuous X is standardised globally** - so the prior on μₖ is interpretable
+  on a common scale, consistent with the model the samplers fit.
+- **A_μ = 1/16** - Rossi's recommended precision for standardised X, admitting
   component means within roughly ±8 (2 SD).
 - **Σₖ is diagonal**, with variances drawn from Uniform(0.5, 2.0). The DGP keeps the
   true component covariances diagonal; the _model_ (below) still places a full
@@ -202,7 +202,7 @@ pvec     ~ Dirichlet(dirichlet_a)
 
 Default hyperparameters: `a_μ = 0.01`, `A_Δ = 0.01`, `dirichlet_a = 1.0`. Note the
 model places a _full-covariance_ Wishart prior on Σₖ⁻¹ regardless of the diagonal
-DGP — the model is not told how the data were generated.
+DGP - the model is not told how the data were generated.
 
 ### K_MODEL vs K_TRUE
 
@@ -214,9 +214,9 @@ of the data:
 
 Two strategies are supported by the batch runner:
 
-- **`fixed5`** — fit `K_MODEL = 5` on every scenario (the overspecified study; surplus
+- **`fixed5`** - fit `K_MODEL = 5` on every scenario (the overspecified study; surplus
   components are expected to collapse toward zero weight).
-- **`known`** — fit `K_MODEL = K_TRUE` (the correctly-specified baseline).
+- **`known`** - fit `K_MODEL = K_TRUE` (the correctly-specified baseline).
 
 When `K_MODEL > K_TRUE`, a smaller `dirichlet_a` (e.g. `0.5`) places more prior mass
 near the simplex corners and encourages spurious components to shrink.
@@ -229,8 +229,8 @@ near the simplex corners and encourages spurious components to shrink.
 | HMC     | `src/inference/hmc.py`  | Fixed-length leapfrog (default 10 integration steps) per block.                                     |
 | IWLS    | `src/inference/iwls.py` | Mixed: IWLS on coefficient blocks (μₖ, Δ, βᵢ), NUTS on the simplex / Cholesky blocks. Experimental. |
 
-All runners sample five blocks separately — `pvec_latent`,
-`sigma_inv_chol_k_latent`, `mu_k`, `Delta` (if demographics present), `beta_i` — and
+All runners sample five blocks separately - `pvec_latent`,
+`sigma_inv_chol_k_latent`, `mu_k`, `Delta` (if demographics present), `beta_i` - and
 take an explicit `K` for correct logging.
 
 ---
@@ -253,7 +253,7 @@ uv run python run_single_experiment.py \
 # Full argument reference (all flags with their defaults)
 uv run python run_single_experiment.py \
     --scenario 5comp_equal \        # name from experiment_configs.SCENARIOS
-    --k-model 5 \                   # K_MODEL — number of components the model fits
+    --k-model 5 \                   # K_MODEL - number of components the model fits
     --sampler nuts \                # nuts | hmc | iwls
     --chains 1 \                    # number of MCMC chains
     --warmup 2000 \                 # warmup / adaptation draws per chain (min ~200)
@@ -280,7 +280,7 @@ Writes into `--outdir`:
 | `sampling.log`      | Clean Goose engine log (epochs + per-kernel error counts).                |
 | `summary.txt`       | Human-readable headline: dims, config, timing, per-kernel errors (named). |
 | `meta.json`         | Structured config + dimensions + timing + parsed `sampling_errors`.       |
-| `status.json`       | `{"status": "success"                                                     | "failed", ...}` — used for resume. |
+| `status.json`       | `{"status": "success"                                                     | "failed", ...}` - used for resume. |
 
 > Goose's warmup schedule has a minimum length; very small `--warmup` values
 > (e.g. 50) raise `warmup_duration too short`. Use `--warmup 200` or more for quick
@@ -302,11 +302,11 @@ uv run python run_all_experiments.py --force          # re-run completed experim
 
 Behaviour:
 
-- **Resumable** — experiments whose `status.json` reports success are skipped, so a
+- **Resumable** - experiments whose `status.json` reports success are skipped, so a
   re-run after interruption continues where it stopped.
-- **Robust** — each subprocess has a wall-clock timeout (`TIMEOUT_S`); a stuck fit is
+- **Robust** - each subprocess has a wall-clock timeout (`TIMEOUT_S`); a stuck fit is
   killed and the batch moves on.
-- **Auditable** — `batch_logs/manifest_<stamp>.csv` records status + duration per run;
+- **Auditable** - `batch_logs/manifest_<stamp>.csv` records status + duration per run;
   `batch_logs/batch_<stamp>.log` is the master log.
 
 Edit the grid, MCMC budget (`WARMUP`, `POSTERIOR`), priors, and `TIMEOUT_S` at the
