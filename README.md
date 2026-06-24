@@ -75,6 +75,9 @@ HierarchicalBayesianMNL/
 ├── generate_data.py                    # CLI — generates all simulation datasets
 ├── run_single_experiment.py            # runs ONE model fit, saves all output
 ├── run_all_experiments.py              # batch orchestrator (overnight runs)
+├── distribute_analysis_notebooks.py    # copies analysis_template.ipynb into each run folder
+├── execute_analysis_notebooks.py       # executes all liesel.ipynb notebooks via nbconvert
+├── analysis_template.ipynb             # self-configuring per-run analysis notebook
 │
 ├── pyproject.toml / uv.lock            # Python dependencies (uv)
 ├── renv.lock / .Rprofile / renv/       # R dependencies (renv)
@@ -240,10 +243,31 @@ so they can run unattended.
 ### One experiment
 
 ```bash
+# Minimal required arguments
 uv run python run_single_experiment.py \
-    --scenario 5comp_equal --k-model 5 --sampler nuts \
-    --chains 1 --warmup 2000 --posterior 10000 --seed 42 \
-    --outdir hbmnl_mixture_experiments/1_chain/5_comp/NUTS/results/run
+    --scenario 5comp_equal \
+    --k-model 5 \
+    --sampler nuts \
+    --outdir hbmnl_mixture_experiments/1_chain/5_comp/NUTS/5comp_equal_K5_seed42/results
+
+# Full argument reference (all flags with their defaults)
+uv run python run_single_experiment.py \
+    --scenario 5comp_equal \        # name from experiment_configs.SCENARIOS
+    --k-model 5 \                   # K_MODEL — number of components the model fits
+    --sampler nuts \                # nuts | hmc | iwls
+    --chains 1 \                    # number of MCMC chains
+    --warmup 2000 \                 # warmup / adaptation draws per chain (min ~200)
+    --posterior 10000 \             # posterior draws per chain to keep
+    --seed 42 \                     # RNG seed
+    --outdir <path>/results \       # directory for all output artifacts
+    --a-delta 0.01 \                # prior precision on Delta (demographic coefficients)
+    --a-mu 0.01 \                   # prior precision on mu_k (component means)
+    --dirichlet-a 1.0 \             # Dirichlet concentration (use <1.0, e.g. 0.5, to
+    \                               #   encourage collapse when K_MODEL > K_TRUE)
+    --num-integration-steps 10 \    # HMC only: fixed leapfrog steps per proposal
+    --no-save-results \             # skip pickling the full Goose mcmc_results object
+    --no-save-raw \                 # skip pickling posterior_raw.pkl
+    --data-dir data/simulated/mixture  # override the default data directory
 ```
 
 Writes into `--outdir`:
@@ -297,6 +321,72 @@ The run dies if the machine sleeps or the terminal closes. Before leaving it:
 - Set sleep to _Never_ on AC (`powercfg /change standby-timeout-ac 0` on Windows).
 - Set lid-close to _Do nothing_ on AC, or leave the lid open.
 - Leave the terminal open (the process is a child of it).
+
+---
+
+## Analysis Notebooks
+
+Two scripts manage the per-run `liesel.ipynb` notebooks. The typical workflow is:
+**distribute** first (place the template), then **execute** (run them).
+
+### Distributing the template
+
+`distribute_analysis_notebooks.py` copies `analysis_template.ipynb` as `liesel.ipynb`
+into every run folder that contains a `posterior_raw.pkl`. The notebook is
+self-configuring: it reads `meta.json` at runtime to locate its own artifacts.
+
+```bash
+# Preview which folders would receive a notebook
+uv run python distribute_analysis_notebooks.py --dry-run
+
+# Copy where liesel.ipynb is missing (safe default)
+uv run python distribute_analysis_notebooks.py
+
+# Overwrite existing liesel.ipynb (e.g. after updating the template)
+uv run python distribute_analysis_notebooks.py --force
+
+# Write under a different filename instead of liesel.ipynb
+uv run python distribute_analysis_notebooks.py --name analysis.ipynb
+```
+
+### Executing the notebooks
+
+`execute_analysis_notebooks.py` runs every `liesel.ipynb` found under
+`hbmnl_mixture_experiments/` in-place via `jupyter nbconvert`, embedding the cell
+outputs back into the file. Each notebook is executed with its own run folder as
+the working directory so the self-resolution fallback works correctly.
+
+A notebook is considered already executed when at least one code cell has a
+non-null `execution_count` - which nbconvert always sets on a successful run.
+By default, already-executed notebooks are skipped; use `--force` to re-run them.
+
+```bash
+# List all notebooks, showing whether each is pending or already executed
+uv run python execute_analysis_notebooks.py --dry-run
+
+# Execute only pending notebooks (default - skip already-executed ones)
+uv run python execute_analysis_notebooks.py
+
+# Re-run all notebooks, including already-executed ones
+uv run python execute_analysis_notebooks.py --force
+
+# Custom per-notebook timeout in seconds (default 600)
+uv run python execute_analysis_notebooks.py --timeout 900
+
+# Only target notebooks whose path contains a given substring
+uv run python execute_analysis_notebooks.py --filter 1_chain/2_comp
+uv run python execute_analysis_notebooks.py --filter NUTS
+uv run python execute_analysis_notebooks.py --filter 3comp_equal
+
+# Combine flags freely
+uv run python execute_analysis_notebooks.py --filter 1_chain/2_comp --timeout 1200
+uv run python execute_analysis_notebooks.py --filter NUTS --force
+```
+
+The script prints `OK (Xs)`, `FAILED (Xs)`, or `SKIP (already executed)` per
+notebook and exits with status 1 if any notebook fails, printing the last 6 lines
+of its stderr for quick diagnosis. The final summary reports succeeded / failed /
+skipped counts.
 
 ---
 
