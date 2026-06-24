@@ -95,8 +95,8 @@ def build_grid(strategy: str):
             for sampler in SAMPLER_GRID:
                 k_model = resolve_k_model(k_true, strategy)
                 outdir = (RESULTS_ROOT / chains_label(chains) / f"{k_true}_comp"
-                          / sampler.upper() / "results"
-                          / f"{scenario}_K{k_model}_seed{SEED}")
+                          / sampler.upper() / f"{scenario}_K{k_model}_seed{SEED}"
+                          / "results")
                 grid.append({
                     "scenario": scenario, "k_true": k_true, "k_model": k_model,
                     "sampler": sampler, "chains": chains, "outdir": outdir,
