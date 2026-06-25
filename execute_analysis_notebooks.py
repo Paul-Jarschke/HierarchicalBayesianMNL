@@ -15,6 +15,7 @@ Usage
     uv run python execute_analysis_notebooks.py --dry-run    # list targets
     uv run python execute_analysis_notebooks.py --timeout 900
     uv run python execute_analysis_notebooks.py --filter 1_chain/2_comp
+    uv run python execute_analysis_notebooks.py --name label_switching.ipynb  # run the relabeling notebooks
 """
 
 import argparse
@@ -33,12 +34,12 @@ EXP_ROOT      = PROJECT_ROOT / "hbmnl_mixture_experiments"
 NOTEBOOK_NAME = "analysis.ipynb"
 
 
-def find_notebooks(filter_str=None):
-    """Return sorted list of analysis.ipynb paths that sit beside a results/ dir."""
+def find_notebooks(filter_str=None, name=NOTEBOOK_NAME):
+    """Return sorted list of <name> paths that sit beside a results/ dir."""
     notebooks = sorted(
-        p.parent.parent / NOTEBOOK_NAME
+        p.parent.parent / name
         for p in EXP_ROOT.rglob("posterior_raw.pkl")
-        if (p.parent.parent / NOTEBOOK_NAME).exists()
+        if (p.parent.parent / name).exists()
     )
     if filter_str:
         filter_norm = filter_str.replace("\\", "/")
@@ -86,12 +87,15 @@ def main():
     ap.add_argument("--force",   action="store_true", help="Re-run already-executed notebooks.")
     ap.add_argument("--timeout", type=int, default=600, help="Seconds allowed per notebook (default 600).")
     ap.add_argument("--filter",  default=None, help="Only execute notebooks whose path contains this string.")
+    ap.add_argument("--name",    default=NOTEBOOK_NAME,
+                    help=f"Notebook filename to execute in each run folder (default: {NOTEBOOK_NAME}; "
+                         f"e.g. label_switching.ipynb).")
     args = ap.parse_args()
 
-    notebooks = find_notebooks(args.filter)
+    notebooks = find_notebooks(args.filter, args.name)
 
     if not notebooks:
-        sys.exit(f"No {NOTEBOOK_NAME} files found under {EXP_ROOT}.")
+        sys.exit(f"No {args.name} files found under {EXP_ROOT}.")
 
     print(f"Notebooks found : {len(notebooks)}")
     if args.filter:
