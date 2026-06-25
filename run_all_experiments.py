@@ -57,21 +57,21 @@ except Exception:
         ("5comp_equal", 5),
     ]
 
-CHAINS_GRID  = [1, 2, 4]
+CHAINS_GRID  = [1,2]
 SAMPLER_GRID = ["hmc", "nuts"]          # add "iwls" later maybe
 
-# MCMC budget (edit to taste)
+# Chain lenghts (edit to taste)
 WARMUP    = 2000
-POSTERIOR = 5000
+POSTERIOR = 10000
 SEED      = 42
 
 # Priors
 A_DELTA     = 0.01
-A_MU        = 0.01
+A_MU        = 0.0625  # Set to 1/16 as advised by rossi p.150
 DIRICHLET_A = 1.0
 
 # Per-experiment wall-clock cap; a stuck fit is killed so the batch continues.
-TIMEOUT_S = 6 * 60 * 60          # 6 hours
+TIMEOUT_S = 6 * 60 * 60          # 3 hours
 
 
 def resolve_k_model(k_true: int, strategy: str) -> int:
@@ -105,7 +105,9 @@ def build_grid(strategy: str):
     # Guarantee every 1-chain experiment runs before any 4-chain experiment,
     # independent of how CHAINS_GRID happens to be ordered. A stable sort keeps
     # the scenario/sampler order within each chain count.
-    _SAMPLER_ORDER = {"hmc": 0, "nuts": 1, "iwls": 2}
+    _SAMPLER_ORDER = {"hmc": 0,
+                      "nuts": 1,
+                      "iwls": 2}
     grid.sort(key=lambda e: (_SAMPLER_ORDER[e["sampler"]], e["chains"]))
     return grid
 
