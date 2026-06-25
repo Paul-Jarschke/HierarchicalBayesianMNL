@@ -1,5 +1,5 @@
 """
-Execute all liesel.ipynb notebooks found under hbmnl_mixture_experiments/.
+Execute all analysis.ipynb notebooks found under hbmnl_mixture_experiments/.
 
 Each notebook is run in-place (outputs embedded back into the .ipynb file)
 using jupyter nbconvert. The notebook's own folder is used as cwd so that
@@ -30,11 +30,11 @@ PROJECT_ROOT = next(
     if (p / "pyproject.toml").exists()
 )
 EXP_ROOT      = PROJECT_ROOT / "hbmnl_mixture_experiments"
-NOTEBOOK_NAME = "liesel.ipynb"
+NOTEBOOK_NAME = "analysis.ipynb"
 
 
 def find_notebooks(filter_str=None):
-    """Return sorted list of liesel.ipynb paths that sit beside a results/ dir."""
+    """Return sorted list of analysis.ipynb paths that sit beside a results/ dir."""
     notebooks = sorted(
         p.parent.parent / NOTEBOOK_NAME
         for p in EXP_ROOT.rglob("posterior_raw.pkl")
