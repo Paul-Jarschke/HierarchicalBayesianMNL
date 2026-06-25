@@ -326,8 +326,11 @@ The run dies if the machine sleeps or the terminal closes. Before leaving it:
 
 ## Analysis Notebooks
 
-Two scripts manage the per-run `analysis.ipynb` notebooks. The typical workflow is:
-**distribute** first (place the template), then **execute** (run them).
+Each run folder holds two self-configuring notebooks: **`analysis.ipynb`**
+(diagnostics and parameter recovery) and **`label_switching.ipynb`**
+(ECR.iterative.1 relabeling). Both follow the same workflow - **distribute** first
+(place the template), then **execute** (run them). The analysis notebook is covered
+first; the label-switching commands are in their own subsection below.
 
 ### Distributing the template
 
@@ -381,12 +384,49 @@ uv run python execute_analysis_notebooks.py --filter 3comp_equal
 # Combine flags freely
 uv run python execute_analysis_notebooks.py --filter 1_chain/2_comp --timeout 1200
 uv run python execute_analysis_notebooks.py --filter NUTS --force
+
+# Execute a different notebook filename instead of analysis.ipynb
+# (this is how the label-switching notebooks are run - see the subsection below)
+uv run python execute_analysis_notebooks.py --name label_switching.ipynb
 ```
 
 The script prints `OK (Xs)`, `FAILED (Xs)`, or `SKIP (already executed)` per
 notebook and exits with status 1 if any notebook fails, printing the last 6 lines
 of its stderr for quick diagnosis. The final summary reports succeeded / failed /
 skipped counts.
+
+### Label-switching notebooks
+
+`label_switching.ipynb` applies post-hoc **ECR.iterative.1** relabeling
+(Papastamoulis & Iliopoulos 2010; the `label.switching` R package) to resolve label
+switching in the mixture component parameters, with full before/after diagnostics.
+It reconstructs the allocations from the saved draws (`mu_k + Z@Delta`, `Sigma_k`,
+`pvec`, `beta_i`; Rossi Eq. 5.5.19), so the same notebook works for NUTS, HMC and
+bayesm. The logic lives in `src/label_switching.py`; the template is
+`label_switching_template.ipynb`.
+
+It has its own distributor, and is executed via the `--name` flag of the shared
+runner above (so all of `--dry-run`, `--force`, `--filter`, `--timeout` apply):
+
+```bash
+# Distribute label_switching.ipynb into every run folder (--force to overwrite)
+uv run python distribute_label_switching_notebooks.py
+uv run python distribute_label_switching_notebooks.py --force
+uv run python distribute_label_switching_notebooks.py --dry-run
+
+# Run all label-switching notebooks (skips already-executed; --force to re-run all)
+uv run python execute_analysis_notebooks.py --name label_switching.ipynb
+uv run python execute_analysis_notebooks.py --name label_switching.ipynb --force
+uv run python execute_analysis_notebooks.py --name label_switching.ipynb --dry-run
+
+# Full refresh from the template, then run all (use after editing the template)
+uv run python distribute_label_switching_notebooks.py --force
+uv run python execute_analysis_notebooks.py --name label_switching.ipynb --force
+```
+
+> Note: while executing notebooks in-place, keep the corresponding `.ipynb` tabs
+> closed in your editor - VS Code can otherwise save its cached copy back over the
+> freshly executed file.
 
 ---
 
