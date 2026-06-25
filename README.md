@@ -76,7 +76,7 @@ HierarchicalBayesianMNL/
 ├── run_single_experiment.py            # runs ONE model fit, saves all output
 ├── run_all_experiments.py              # batch orchestrator (overnight runs)
 ├── distribute_analysis_notebooks.py    # copies analysis_template.ipynb into each run folder
-├── execute_analysis_notebooks.py       # executes all liesel.ipynb notebooks via nbconvert
+├── execute_analysis_notebooks.py       # executes all analysis.ipynb notebooks via nbconvert
 ├── analysis_template.ipynb             # self-configuring per-run analysis notebook
 │
 ├── pyproject.toml / uv.lock            # Python dependencies (uv)
@@ -326,12 +326,12 @@ The run dies if the machine sleeps or the terminal closes. Before leaving it:
 
 ## Analysis Notebooks
 
-Two scripts manage the per-run `liesel.ipynb` notebooks. The typical workflow is:
+Two scripts manage the per-run `analysis.ipynb` notebooks. The typical workflow is:
 **distribute** first (place the template), then **execute** (run them).
 
 ### Distributing the template
 
-`distribute_analysis_notebooks.py` copies `analysis_template.ipynb` as `liesel.ipynb`
+`distribute_analysis_notebooks.py` copies `analysis_template.ipynb` as `analysis.ipynb`
 into every run folder that contains a `posterior_raw.pkl`. The notebook is
 self-configuring: it reads `meta.json` at runtime to locate its own artifacts.
 
@@ -339,19 +339,19 @@ self-configuring: it reads `meta.json` at runtime to locate its own artifacts.
 # Preview which folders would receive a notebook
 uv run python distribute_analysis_notebooks.py --dry-run
 
-# Copy where liesel.ipynb is missing (safe default)
+# Copy where analysis.ipynb is missing (safe default)
 uv run python distribute_analysis_notebooks.py
 
-# Overwrite existing liesel.ipynb (e.g. after updating the template)
+# Overwrite existing analysis.ipynb (e.g. after updating the template)
 uv run python distribute_analysis_notebooks.py --force
 
-# Write under a different filename instead of liesel.ipynb
-uv run python distribute_analysis_notebooks.py --name analysis.ipynb
+# Write under a different filename instead of analysis.ipynb
+uv run python distribute_analysis_notebooks.py --name custom.ipynb
 ```
 
 ### Executing the notebooks
 
-`execute_analysis_notebooks.py` runs every `liesel.ipynb` found under
+`execute_analysis_notebooks.py` runs every `analysis.ipynb` found under
 `hbmnl_mixture_experiments/` in-place via `jupyter nbconvert`, embedding the cell
 outputs back into the file. Each notebook is executed with its own run folder as
 the working directory so the self-resolution fallback works correctly.
