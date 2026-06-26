@@ -35,12 +35,12 @@ NOTEBOOK_NAME = "analysis.ipynb"
 
 
 def find_notebooks(filter_str=None, name=NOTEBOOK_NAME):
-    """Return sorted list of <name> paths that sit beside a results/ dir."""
-    notebooks = sorted(
-        p.parent.parent / name
-        for p in EXP_ROOT.rglob("posterior_raw.pkl")
-        if (p.parent.parent / name).exists()
-    )
+    """Return sorted list of notebooks named <name> anywhere under EXP_ROOT.
+
+    Works for the per-run notebooks (analysis.ipynb, label_switching.ipynb, which
+    live beside a results/ dir) and the x_comp-level marginal_comparison.ipynb
+    alike - each is executed with its own folder as cwd so it self-resolves."""
+    notebooks = sorted(EXP_ROOT.rglob(name))
     if filter_str:
         filter_norm = filter_str.replace("\\", "/")
         notebooks = [nb for nb in notebooks if filter_norm in str(nb).replace("\\", "/")]
