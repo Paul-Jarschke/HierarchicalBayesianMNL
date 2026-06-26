@@ -1,6 +1,4 @@
 # Filetypes to ignore when pushing commits to remote GitHub repository
-
-# Python
 __pycache__/
 *.pyc
 *.json
@@ -8,6 +6,8 @@ __pycache__/
 *.log
 *.csv
 *.txt
+
+CLAUDE.md
 
 # R / renv 
 .Rhistory
