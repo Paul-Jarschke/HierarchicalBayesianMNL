@@ -57,7 +57,7 @@ except Exception:
         ("5comp_equal", 5),
     ]
 
-CHAINS_GRID  = [1,2]
+CHAINS_GRID  = [1, 2, 4]
 SAMPLER_GRID = ["hmc", "nuts"]          # add "iwls" later maybe
 
 # Chain lenghts (edit to taste)

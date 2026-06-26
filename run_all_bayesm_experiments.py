@@ -54,7 +54,7 @@ except Exception:
         ("5comp_equal", 5),
     ]
 
-CHAINS_GRID = [1, 2]            # match the current Liesel CHAINS_GRID
+CHAINS_GRID = [1, 2, 4]         # match the Liesel CHAINS_GRID
 
 # bayesm MCMC length. The R side keeps ALL raw draws, discards the first BURN_IN
 # (warmup), THEN thins by THIN - so retained/chain = (R_TOTAL - BURN_IN) / THIN.
