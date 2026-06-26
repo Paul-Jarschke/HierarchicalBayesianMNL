@@ -74,10 +74,17 @@ HierarchicalBayesianMNL/
 │
 ├── generate_data.py                    # CLI - generates all simulation datasets
 ├── run_single_experiment.py            # runs ONE model fit, saves all output
-├── run_all_experiments.py              # batch orchestrator (overnight runs)
-├── distribute_analysis_notebooks.py    # copies analysis_template.ipynb into each run folder
-├── execute_analysis_notebooks.py       # executes all analysis.ipynb notebooks via nbconvert
-├── analysis_template.ipynb             # self-configuring per-run analysis notebook
+├── run_all_experiments.py              # Liesel batch orchestrator (subprocess per fit)
+├── run_single_bayesm_experiment.py     # one bayesm fit: drives the R sampler, writes canonical artifacts
+├── run_single_bayesm_experiment.R      # bayesm rhierMnlRwMixture sampler (per chain, seed loop)
+├── run_all_bayesm_experiments.py       # bayesm batch orchestrator (subprocess per fit)
+├── analysis_template.ipynb             # per-run diagnostics / recovery notebook
+├── label_switching_template.ipynb      # per-run ECR.iterative.1 relabeling notebook
+├── marginal_comparison_template.ipynb  # per-<k>_comp marginal-density comparison notebook
+├── distribute_analysis_notebooks.py    # copies template -> <run>/analysis.ipynb
+├── distribute_label_switching_notebooks.py     # copies template -> <run>/label_switching.ipynb
+├── distribute_marginal_comparison_notebooks.py # copies template -> <k>_comp/marginal_comparison.ipynb
+├── execute_analysis_notebooks.py       # runs notebooks in-place via nbconvert (--name selects which)
 │
 ├── pyproject.toml / uv.lock            # Python dependencies (uv)
 ├── renv.lock / .Rprofile / renv/       # R dependencies (renv)
@@ -91,21 +98,22 @@ HierarchicalBayesianMNL/
 ├── batch_logs/                         # master log + manifest.csv per batch run
 │
 ├── hbmnl_mixture_experiments/
-│   ├── __init__.py
 │   ├── experiment_configs.py           # single source of truth for all scenarios
-│   ├── 1_chain/                        # single-chain runs
-│   │   ├── 1_comp/  {HMC, NUTS}/results/
-│   │   ├── 2_comp/  {HMC, NUTS}/results/
-│   │   ├── 3_comp/  {HMC, NUTS}/results/
-│   │   └── 5_comp/  {HMC, NUTS}/results/
-│   └── 4_chains/                       # four-chain runs (same layout)
-│       ├── 1_comp/ … 5_comp/
+│   └── {1_chain, 2_chains}/            # by chain count
+│       └── {1,2,3,5}_comp/             # by true component count
+│           ├── marginal_comparison.ipynb   # cross-sampler comparison (one per <k>_comp)
+│           └── {NUTS, HMC, bayesm}/    # by sampler
+│               └── <run>/              # e.g. 5comp_equal_K5_seed42/
+│                   ├── results/        # all artifacts (posterior_raw.pkl, meta.json, ...)
+│                   ├── analysis.ipynb       # per-run diagnostics / recovery
+│                   └── label_switching.ipynb  # per-run ECR relabeling
 │
 └── src/
-    ├── __init__.py
     ├── dgp.py                          # data-generating process
     ├── mixturemodel.py                 # Liesel model specification
-    ├── analysis.py                     # diagnostics, recovery plots, export
+    ├── analysis.py                     # diagnostics, recovery, invariant convergence, export
+    ├── label_switching.py              # ECR.iterative.1 relabeling (Papastamoulis)
+    ├── marginal_comparison.py          # marginal densities, moments, distances, invariant R-hat/ESS
     └── inference/
         ├── __init__.py
         ├── nuts.py                     # adaptive NUTS runner
@@ -113,9 +121,9 @@ HierarchicalBayesianMNL/
         └── iwls.py                     # mixed IWLS + NUTS runner (experimental)
 ```
 
-The interactive notebooks (`liesel_model.ipynb`) and the bayesm `.R` script live
-inside the relevant `hbmnl_mixture_experiments/.../{NUTS,HMC}/` folders, alongside
-the `results/` directory that batch output is written to.
+Each run folder holds a `results/` directory (all batch output) plus its two
+self-configuring notebooks (`analysis.ipynb`, `label_switching.ipynb`); the
+cross-sampler `marginal_comparison.ipynb` sits one level up, one per `<k>_comp`.
 
 ---
 
@@ -289,7 +297,7 @@ Writes into `--outdir`:
 ### The full batch
 
 `run_all_experiments.py` defines the experiment grid
-(`{1, 4} chains × {1,2,3,5} components × {nuts, hmc}`) and runs each fit as a
+(`{1, 2} chains × {1,2,3,5} components × {nuts, hmc}`) and runs each fit as a
 **separate subprocess**, so JAX memory is released between fits and a hard crash in
 one fit cannot kill the batch.
 
@@ -321,6 +329,32 @@ The run dies if the machine sleeps or the terminal closes. Before leaving it:
 - Set sleep to _Never_ on AC (`powercfg /change standby-timeout-ac 0` on Windows).
 - Set lid-close to _Do nothing_ on AC, or leave the lid open.
 - Leave the terminal open (the process is a child of it).
+
+### The bayesm batch
+
+The bayesm side mirrors the Liesel batch. `run_all_bayesm_experiments.py` defines
+its grid (`{1, 2} chains × {1,2,3,5} components`) and runs each fit as a separate
+subprocess via `run_single_bayesm_experiment.py`, which drives the R sampler
+(`run_single_bayesm_experiment.R`, `rhierMnlRwMixture`) and converts its draws into
+the **same** `posterior_raw.pkl` / `meta.json` artifacts the Liesel runs produce -
+so every downstream notebook treats bayesm exactly like NUTS/HMC.
+
+```bash
+uv run python run_all_bayesm_experiments.py --dry-run        # print the plan only
+uv run python run_all_bayesm_experiments.py                  # fixed5 (K_MODEL=5 everywhere)
+uv run python run_all_bayesm_experiments.py --strategy known # fit K_MODEL = K_TRUE
+uv run python run_all_bayesm_experiments.py --force          # re-run completed experiments
+```
+
+- Output lands in a `bayesm/` folder beside `NUTS/` and `HMC/` in each `<k>_comp`;
+  resumable and auditable exactly like the Liesel batch.
+- Multiple chains are produced via a seed loop and stacked to `(chains, draws, ...)`.
+- MCMC length: the R side keeps every raw draw, discards the first `BURN_IN`
+  iterations, then thins by `THIN`, so retained draws/chain `= (R_TOTAL - BURN_IN) / THIN`
+  (default `(42000 - 2000) / 4 = 10000`, matching the Liesel chains). Edit these at
+  the top of `run_all_bayesm_experiments.py`.
+- Requires the R toolchain (renv restored). The Rscript path can be overridden via
+  the `BAYESM_RSCRIPT` environment variable.
 
 ---
 
@@ -428,23 +462,80 @@ uv run python execute_analysis_notebooks.py --name label_switching.ipynb --force
 > closed in your editor - VS Code can otherwise save its cached copy back over the
 > freshly executed file.
 
+### Marginal-density comparison notebooks
+
+`marginal_comparison.ipynb` contrasts the NUTS, HMC and bayesm runs that sit side
+by side, so **one notebook is placed per `<chains>/<k>_comp/` folder** (above the
+sampler folders), not per run. It computes the marginal posterior densities of
+`beta` (Rossi Eq. 5.5.19), the mixture moments (Eq. 5.5.2), and the distance of
+**every sampler's marginal to the True DGP marginal** (never sampler-vs-sampler):
+Hellinger, KL(model‖true), Jensen-Shannon, total-variation and Wasserstein-1. The
+logic lives in `src/marginal_comparison.py`; the template is
+`marginal_comparison_template.ipynb`.
+
+Every quantity here is **label-invariant** (a per-draw permutation of components
+leaves it unchanged), so relabeling/ECR is unnecessary and would give identical
+results. Three deliberate choices:
+
+- **Grids** are anchored to the fitted models' live-component support (the per-draw
+  top-`K_TRUE` components, union over samplers), *not* to the true DGP - the latter
+  clips the tails/lobes and is circular. The True DGP is an overlay only.
+- **Convergence** uses `arviz` **rank-normalized split-R̂** and ESS on the real
+  `(chains, draws)` invariant series, not on a flattened single chain.
+- For **1-chain runs**, the single chain is split into halves to give a valid
+  **split-R̂** - reported as a *within-chain* check only. This is the standard
+  fallback (Stan computes split-R̂ by default; even one chain yields a valid value
+  from its two halves), but it cannot detect multimodality a lone chain never
+  explored - the between-chain R̂ comes from the multi-chain runs:
+  - Vehtari, Gelman, Simpson, Carpenter & Bürkner (2021), *Rank-normalization,
+    folding, and localization: An improved R̂…*, Bayesian Analysis 16(2):667-718
+    ([Project Euclid](https://projecteuclid.org/journals/bayesian-analysis/volume-16/issue-2/Rank-Normalization-Folding-and-Localization--An-Improved-R%CB%86-for/10.1214/20-BA1221.full),
+    [arXiv:1903.08008](https://arxiv.org/pdf/1903.08008)).
+  - [Stan Reference Manual - Potential Scale Reduction](https://mc-stan.org/docs/2_19/reference-manual/notation-for-samples-chains-and-draws.html);
+    [stan-users: R̂ on a single chain](https://groups.google.com/g/stan-users/c/l68MtxCr7OA).
+  - Gelman et al. (2013), BDA3 §11.4 (split-R̂); Gelman & Rubin (1992) (the original
+    multi-chain rationale for detecting between-mode non-convergence).
+
+It is distributed by its own script and run via the shared runner's `--name` flag:
+
+```bash
+# Distribute marginal_comparison.ipynb into every <k>_comp folder
+uv run python distribute_marginal_comparison_notebooks.py
+uv run python distribute_marginal_comparison_notebooks.py --force
+uv run python distribute_marginal_comparison_notebooks.py --dry-run
+
+# Run all marginal-comparison notebooks (skips already-executed; --force to re-run)
+uv run python execute_analysis_notebooks.py --name marginal_comparison.ipynb --timeout 1200
+uv run python execute_analysis_notebooks.py --name marginal_comparison.ipynb --force --timeout 1200
+
+# Full refresh from the template, then run all
+uv run python distribute_marginal_comparison_notebooks.py --force
+uv run python execute_analysis_notebooks.py --name marginal_comparison.ipynb --force --timeout 1200
+```
+
 ---
 
 ## bayesm (R) Replication
 
-The bayesm `.R` script lives next to the corresponding Liesel notebook and uses the
-renv-managed library. Point it at the **same** dataset the Liesel run used so the two
-samplers are provably comparing on identical data, e.g. `5comp_equal.json`.
+bayesm runs through the automated pipeline in
+[The bayesm batch](#the-bayesm-batch): `run_all_bayesm_experiments.py` ->
+`run_single_bayesm_experiment.py` -> `run_single_bayesm_experiment.R` (there is no
+longer a hand-run `.R` script next to each notebook). The R script loads the
+**same** scenario JSON the Liesel run used (so the two samplers provably compare on
+identical data), reconstructs `lgtdata`, runs `rhierMnlRwMixture` once per chain
+(seed loop), and dumps the raw draws; the Python wrapper converts them into the
+canonical `posterior_raw.pkl` (`mu_k`, `pvec`, `sigma_inv_chol_k_latent`, `beta_i`,
+`Delta`) plus `export.pkl` / `meta.json` / `status.json` - byte-compatible with the
+Liesel artifacts, so the analysis, label-switching and marginal-comparison notebooks
+all work on bayesm unchanged.
 
-```bash
-# from the repo root, with renv restored
-Rscript hbmnl_mixture_experiments/.../bayesm_script.R
-```
-
-The script loads the scenario JSON, reconstructs `lgtdata`, runs
-`rhierMnlRwMixture`, discards burn-in, and exports `mu`/`cov`/`pvec`/`Delta`/`beta`
-draws for the marginal-density comparison. Its model prior
-(`ν = n_params + 3`, `V = ν·I`, `Amu`, Dirichlet `a`) matches the Liesel model prior.
+The model prior is matched to the Liesel model (`ν = n_params + 3`, `V = ν·I`,
+`Amu`, Dirichlet `a`, `Ad = A_delta·I`). The R->Python bridge writes raw float64
+arrays via `writeBin` + a `dims.json` (no extra R packages beyond `bayesm`,
+`jsonlite`, `this.path`); the wrapper reads them back with `np.fromfile`. A single
+long chain is Rossi's convention; for the cross-sampler convergence comparison we
+run multiple seed-based chains - which are **not** over-dispersed, so their R-hat is
+a weaker test than the NUTS/HMC chains.
 
 ---
 
