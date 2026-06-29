@@ -208,9 +208,10 @@ for (chain in seq_len(CHAINS)) {
     write_bin(beta_arr, file.path(OUT_RAW_DIR, sprintf("beta_chain%d.bin", cidx)))
 
     if (has_Z) {
-        # Deltadraw row = vec(Delta) column-major of (D,P); reshape to (S,D,P)
+        # Deltadraw row = vec(Delta) column-major of bayesm's (nvar x nz) = (P, D).
+        # aperm to (S, D, P) so Python reads it as (C, S, D, P) matching TRUE_DELTA.
         Dd <- out$Deltadraw[keep_idx, , drop = FALSE]
-        delta_arr <- aperm(array(t(Dd), dim = c(D, P, S)), c(3, 1, 2))
+        delta_arr <- aperm(array(t(Dd), dim = c(P, D, S)), c(3, 2, 1))
         write_bin(delta_arr, file.path(OUT_RAW_DIR, sprintf("delta_chain%d.bin", cidx)))
     }
 
